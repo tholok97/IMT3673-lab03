@@ -9,7 +9,11 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.media.AudioManager;
+import android.media.ToneGenerator;
 import android.os.Bundle;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
 import android.util.Log;
 import android.view.View;
 import android.view.Window;
@@ -17,6 +21,9 @@ import android.view.WindowManager;
 
 public class MainActivity extends Activity {
 
+    private ToneGenerator toneGenerator;
+
+    private Vibrator vibrator;
 
     private SensorManager sensorManager;
     private Sensor sensor;
@@ -24,8 +31,12 @@ public class MainActivity extends Activity {
 
     private static String LOG_TAG = "BallTiltThing";
 
-    int ballX;
-    int ballY;
+    float ballX;
+    float ballY;
+    float ballVelX;
+    float ballVelY;
+    float ballAccX;
+    float ballAccY;
     float ballWidth;
 
 
@@ -42,6 +53,12 @@ public class MainActivity extends Activity {
         sensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
 
         listener = new MyListener();
+
+        // setup tonegenerator
+        toneGenerator = new ToneGenerator(AudioManager.STREAM_NOTIFICATION, 100);
+
+        // setup vibrator
+        vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
 
 
 
@@ -104,6 +121,59 @@ public class MainActivity extends Activity {
             super.onDraw(canvas);
 
 
+
+            // update x, y based on velocity
+            ballX += ballVelX;
+            ballY += ballVelY;
+
+            // update velocity based on acc
+            ballVelX += ballAccX;
+            ballVelY += ballAccY;
+
+            // dampening
+            ballVelX *= 0.99f;
+            ballVelY *= 0.99f;
+
+            // react to hitting boundaries
+            // play sound, reverse velocity and reposition ball upon hit
+            if (ballX < ballWidth+10) {
+
+                // THIS IS DEPRICATED (but using it for simplicity
+                vibrator.vibrate(100);
+
+                toneGenerator.startTone(ToneGenerator.TONE_PROP_BEEP);
+                ballVelX *= -1;
+                ballX = ballWidth+10+1;
+            }
+            if (ballX > getWidth() - ballWidth-10) {
+
+                // THIS IS DEPRICATED (but using it for simplicity
+                vibrator.vibrate(100);
+
+                toneGenerator.startTone(ToneGenerator.TONE_PROP_BEEP);
+                ballVelX *= -1;
+                ballX = getWidth() - ballWidth - 10 - 1;
+            }
+            if (ballY < ballWidth+10) {
+
+                // THIS IS DEPRICATED (but using it for simplicity
+                vibrator.vibrate(100);
+
+                toneGenerator.startTone(ToneGenerator.TONE_PROP_BEEP);
+                ballVelY *= -1;
+                ballY = ballWidth+10 + 1;
+            }
+            if (ballY > getHeight() - ballWidth-10) {
+
+                // THIS IS DEPRICATED (but using it for simplicity
+                vibrator.vibrate(100);
+
+                toneGenerator.startTone(ToneGenerator.TONE_PROP_BEEP);
+                ballVelY *= -1;
+                ballY = getHeight() - ballWidth-10 - 1;
+            }
+
+
             // draw bouding rect
             canvas.drawRect(new Rect(10, 10, getWidth()-10, getHeight()-10), blackPaint);
 
@@ -121,10 +191,10 @@ public class MainActivity extends Activity {
         @Override
         public void onSensorChanged(SensorEvent sensorEvent) {
 
-            Log.e(LOG_TAG, "X: " + Float.toString(sensorEvent.values[0]) +
-                    ", Y: " + Float.toString(sensorEvent.values[1]) +
-                    ", Z: " + Float.toString(sensorEvent.values[2]));
 
+            // move ball based on accelorometer data
+            ballAccX = 0.2f * sensorEvent.values[1];
+            ballAccY = 0.2f * sensorEvent.values[0];
         }
 
         @Override
